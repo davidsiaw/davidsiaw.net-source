@@ -5,4 +5,7 @@ jobs:
       - image: circleci/ruby:2.3-jessie
     steps:
       - checkout
+      - add_ssh_keys:
+        fingerprints:
+          - "ab:db:4b:db:4a:13:2f:b4:8c:21:ef:c4:f8:f0:19:d0"
       - run: bash deploy.bash

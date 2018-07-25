@@ -9,7 +9,7 @@ center_page "", "Welcome to davidsiaw.net" do
 
 	row do
 		col 12 do
-			h2 "Welcome to my website!"
+			h2 "Select a site to go to"
 
 			hr
 
@@ -44,4 +44,5 @@ center_page "", "Welcome to davidsiaw.net" do
 			end
 		end
 	end
+
 end

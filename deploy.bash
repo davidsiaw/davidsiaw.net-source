@@ -1,6 +1,6 @@
 #!/bin/bash
 git config --global user.email "davidsiaw@gmail.com"
-#git config --global user.name "David Siaw (via Circle CI)"
+git config --global user.name "David Siaw (via Circle CI)"
 
 git clone git@github.com:davidsiaw/davidsiaw.net.git build
 cp -r build/.git ./gittemp

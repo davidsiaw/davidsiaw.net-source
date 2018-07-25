@@ -1,0 +1,47 @@
+center_page "", "Welcome to davidsiaw.net" do
+	header do
+		col 12 do
+			jumbotron do
+				span "central dogma", style: "font-size: 3em"
+			end
+		end
+	end
+
+	row do
+		col 12 do
+			h2 "Welcome to my website!"
+
+			hr
+
+			row do
+				third do
+					a href: "https://davidsiaw.github.io" do
+						ibox do
+							span style: "text-align: center;" do
+								h3 "blog"
+							end
+						end
+					end
+				end
+				third do
+					a href: "https://resume.davidsiaw.net" do
+						ibox do
+							span style: "text-align: center;" do
+								h3 "résumé"
+							end
+						end
+					end
+				end
+				third do
+					a href: "https://github.com/davidsiaw" do
+						ibox do
+							span style: "text-align: center;" do
+								h3 "github"
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+end

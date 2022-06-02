@@ -6,5 +6,5 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys:
-          fingerprints: "ab:db:4b:db:4a:13:2f:b4:8c:21:ef:c4:f8:f0:19:d0"
+          fingerprints: "ea:26:4e:2a:5a:93:5d:93:5a:f5:39:1c:9c:01:c5:00"
       - run: bash deploy.bash

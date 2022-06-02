@@ -1,0 +1,57 @@
+topnav_page "", "bitrep" do
+
+	request_css 'css/bitrep.css'
+	request_js 'js/bitrep.js'
+
+	row do
+		col 12 do
+
+			ibox do
+				wform do
+					textfield "num", "type a number here" do
+						onchange "changed(this)"
+					end
+				end
+			end
+
+			ibox do
+
+
+				[8, 16, 24, 32, 64].each do |sz|
+
+					table do
+						tr do
+							td do
+								table id: 'bittable' do
+									(0...sz).each_slice(32) do |arr|
+										tr do
+											arr.each do |x|
+												th "#{sz-1-x}", id: "label#{sz}_#{sz-1-x}"
+
+											end
+										end
+										tr do
+											arr.each do |x|
+												td "0", id: "b#{sz}_#{sz-1-x}"
+											end
+										end
+									end
+								end
+									
+								div do
+									text "#{sz}-bits "
+									span "", id: "info#{sz}"
+								end
+							end
+						end
+
+					end
+
+				end
+
+			end
+
+
+		end
+	end
+end

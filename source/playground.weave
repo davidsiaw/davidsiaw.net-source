@@ -1,0 +1,19 @@
+center_page "", "david's playground" do
+	header do
+		col 12 do
+			jumbotron do
+				span "playground", style: "font-size: 3em"
+			end
+		end
+	end
+
+    row do
+        full do
+            ul do
+                li do
+                    a "bit representation", href: "/playground/bitrep"
+                end
+            end
+        end
+    end
+end

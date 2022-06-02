@@ -42,7 +42,18 @@ center_page "", "Welcome to davidsiaw.net" do
 					end
 				end
 			end
+
+			row do
+				full do
+					a href: "https://davidsiaw.net/playground" do
+						ibox do
+							span style: "text-align: center;" do
+								h3 "playground"
+							end
+						end
+					end
+				end
+			end
 		end
 	end
-
 end

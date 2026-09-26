@@ -2,3 +2,5 @@ build/
 cache/
 gittemp/
 .DS_Store
+.pi-sessions/
+.pirag/

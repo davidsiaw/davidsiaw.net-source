@@ -1,19 +1,22 @@
-center_page "", "david's playground" do
-	header do
-		col 12 do
-			jumbotron do
-				span "playground", style: "font-size: 3em"
+center_page "", "david's playground", theme: "dark" do
+	request_css "css/front.css"
+
+	div class: "front" do
+		h1 "playground", class: "front-title"
+		p "small experiments", class: "front-subtitle"
+
+		div class: "front-grid" do
+			a href: "/playground/bitrep", class: "front-card" do
+				icon :th
+				span "bit representation", class: "front-card-title"
+				span "integers & floats, bit by bit", class: "front-card-sub"
+			end
+
+			a href: "/", class: "front-card" do
+				icon :home
+				span "home", class: "front-card-title"
+				span "back to davidsiaw.net", class: "front-card-sub"
 			end
 		end
 	end
-
-    row do
-        full do
-            ul do
-                li do
-                    a "bit representation", href: "/playground/bitrep"
-                end
-            end
-        end
-    end
 end

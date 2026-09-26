@@ -1,0 +1,61 @@
+name: Build and deploy
+
+# Builds the site on every push; pushes the result to davidsiaw/davidsiaw.net
+# (served by GitHub Pages at https://davidsiaw.net) only from master.
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # the .weave sources contain non-ASCII text
+      LANG: C.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0'
+          bundler-cache: true
+
+      - name: Build
+        run: |
+          bundle exec weaver build -r https://davidsiaw.net
+          echo davidsiaw.net > build/CNAME
+
+      - name: Deploy to davidsiaw/davidsiaw.net
+        if: github.ref == 'refs/heads/master'
+        env:
+          # private half of a deploy key with write access on davidsiaw/davidsiaw.net
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes"
+
+          git clone --depth 1 git@github.com:davidsiaw/davidsiaw.net.git site
+
+          # mirror the build into the checkout, so removed pages are removed there too
+          find site -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -r build/. site/
+
+          cd site
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Site unchanged, nothing to deploy."
+            exit 0
+          fi
+          git -c user.name="David Siaw (via GitHub Actions)" -c user.email="davidsiaw@gmail.com" \
+            commit -m "update from davidsiaw.net-source@${GITHUB_SHA::7}"
+          git push

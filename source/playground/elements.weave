@@ -1,0 +1,191 @@
+require 'json'
+
+# Built from the files pulled by script/pull-elements (see data/elements/SOURCES.md).
+read_data = ->(file) { JSON.parse(File.read(File.join("data", "elements", file), encoding: "UTF-8")) }
+
+pubchem_table = read_data.("pubchem.json")["Table"]
+pubchem_columns = pubchem_table["Columns"]["Column"]
+pubchem = pubchem_table["Row"]
+	.map { |row| pubchem_columns.zip(row["Cell"]).to_h }
+	.to_h { |row| [row["AtomicNumber"].to_i, row] }
+
+# hand-made fixes to the pulled data (see data/elements/corrections.json)
+corrections = read_data.("corrections.json")["pubchem"]
+corrections.each do |fix|
+	row = pubchem.fetch(fix["element"])
+	unless row[fix["field"]] == fix["replaces"]
+		raise "corrections.json: PubChem #{fix['field']} for element #{fix['element']} is now " \
+			"#{row[fix['field']].inspect}, not #{fix['replaces'].inspect}; review the correction"
+	end
+	row[fix["field"]] = fix["value"]
+end
+
+# the rows of the detail popover, formatted here so js/elements.js only has to display them;
+# empty values are dropped. Physical properties are PubChem's (units per its periodic table);
+# descriptive fields are Bowserinator's.
+present = ->(value) { value.nil? || value.to_s.strip.empty? ? nil : value.to_s.strip }
+kelvin = ->(k) { present.(k) && "#{k} K (#{format('%.2f', k.to_f - 273.15).sub(/\.?0+$/, '')} °C)" }
+with_unit = ->(value, unit) { present.(value) && "#{value} #{unit}" }
+
+details = lambda do |el, pc|
+	config = present.(el["electron_configuration_semantic"])
+	config = "#{config.delete_prefix('*')} (predicted)" if config&.start_with?("*")
+	position = [
+		("group #{el['group']}" unless el["block"] == "f"),
+		"period #{el['period']}",
+		"#{el['block']}-block",
+	].compact.join(" · ")
+
+	[
+		["atomic mass", with_unit.(pc["AtomicMass"], "u")],
+		["position", position],
+		["standard state", present.(pc["StandardState"])&.downcase],
+		["appearance", present.(el["appearance"])],
+		["electron configuration", config],
+		["electrons per shell", el["shells"]&.join(", ")],
+		["oxidation states", present.(pc["OxidationStates"])],
+		["electronegativity", present.(pc["Electronegativity"]) && "#{pc['Electronegativity']} (Pauling)"],
+		["van der Waals radius", with_unit.(pc["AtomicRadius"], "pm")],
+		["first ionisation energy", with_unit.(pc["IonizationEnergy"], "eV")],
+		["electron affinity", with_unit.(pc["ElectronAffinity"], "eV")],
+		["melting point", kelvin.(pc["MeltingPoint"])],
+		["boiling point", kelvin.(pc["BoilingPoint"])],
+		["density", with_unit.(pc["Density"], "g/cm³")],
+		["discovered", present.(pc["YearDiscovered"])],
+		["discovered by", present.(el["discovered_by"])],
+		["named by", present.(el["named_by"])],
+	].select { |_label, value| value }
+end
+
+# layout (xpos/ypos) and names from Bowserinator; mass and category from PubChem.
+# 119 (Uue) is hypothetical and only in Bowserinator, so it is left out.
+elements = read_data.("bowserinator.json")["elements"].filter_map do |el|
+	pc = pubchem[el["number"]] or next
+	{
+		number: el["number"],
+		symbol: el["symbol"],
+		name: el["name"],
+		mass: pc["AtomicMass"],
+		category: pc["GroupBlock"],
+		col: el["xpos"],
+		# 1-7 main table, 9-10 lanthanides/actinides; row 8 is empty (css makes it a small gap)
+		row: el["ypos"],
+		# nil for PubChem's "Ancient"; those are shown at every point on the timeline
+		year: pc["YearDiscovered"][/\A\d+\z/]&.to_i,
+		summary: present.(el["summary"]),
+		source: present.(el["source"])&.tr(" ", "_"),
+		details: details.(el, pc),
+	}
+end
+
+categories = [
+	"Alkali metal", "Alkaline earth metal", "Transition metal", "Post-transition metal",
+	"Metalloid", "Nonmetal", "Halogen", "Noble gas", "Lanthanide", "Actinide",
+]
+unknown = elements.map { |e| e[:category] } - categories
+raise "uncategorised GroupBlock in pubchem.json: #{unknown.uniq.join(', ')}" unless unknown.empty?
+
+slug = ->(category) { category.downcase.tr(" ", "-") }
+
+# the f-block rows, which the 57–71 / 89–103 markers in group 3 stand in for
+series = { 9 => "series-lanthanide", 10 => "series-actinide" }
+
+# the discovery timeline slider runs from just before the first dated discovery
+# ("antiquity": only the ancient elements) to the latest one
+years = elements.filter_map { |el| el[:year] }
+first_year, last_year = years.min, years.max
+
+# a group 3 marker appears on the timeline with the first element of its row
+# (nil, i.e. always shown, if any of them is ancient)
+series_first_year = lambda do |row|
+	row_years = elements.select { |el| el[:row] == row }.map { |el| el[:year] }
+	row_years.include?(nil) ? nil : row_years.min
+end
+marker_year = ->(row) { (year = series_first_year.(row)) ? { "data-year": year } : {} }
+
+nonnav_page "", "periodic table", theme: "dark" do
+
+	request_css 'css/elements.css'
+	request_js 'js/elements.js'
+
+	row do
+		col 12 do
+			div class: "elements" do
+				a "← playground", href: "/playground", class: "elements-back"
+				h1 "periodic table", class: "elements-title"
+				p "All 118 known elements.", class: "elements-lede"
+
+				div class: "elements-legend" do
+					categories.each do |category|
+						span category.downcase, class: "elements-key cat-#{slug.(category)}"
+					end
+				end
+
+				# js/elements.js covers elements discovered after the chosen year
+				div class: "elements-timeline" do
+					label "discovered by", for: "elements-year", class: "elements-timeline-label"
+					input type: "range", id: "elements-year", class: "elements-timeline-slider",
+						min: first_year - 1, max: last_year, step: 1, value: last_year, "data-first": first_year
+					output "", id: "elements-year-output", for: "elements-year", class: "elements-timeline-output"
+				end
+
+				div class: "elements-scroll" do
+					div class: "elements-grid" do
+						elements.each do |el|
+							button type: "button", class: "element cat-#{slug.(el[:category])} #{series[el[:row]]}".rstrip,
+								"data-number": el[:number],
+								**(el[:year] ? { "data-year": el[:year] } : {}),
+								style: "grid-column: #{el[:col]}; grid-row: #{el[:row]};",
+								title: "#{el[:name]} · #{el[:mass]} u · #{el[:category].downcase}" do
+								span el[:number].to_s, class: "element-number"
+								span el[:symbol], class: "element-symbol"
+								span el[:name], class: "element-name"
+								span format("%.3f", el[:mass].to_f).sub(/\.?0+$/, ""), class: "element-mass"
+							end
+						end
+
+						# markers in group 3 pointing at the f-block rows below
+						# hovering (or focusing) one highlights its series; see css/elements.css
+						div "57–71", class: "element-marker marker-lanthanide cat-lanthanide", tabindex: "0",
+							**marker_year.(9),
+							title: "lanthanides: shown in the row below", style: "grid-column: 3; grid-row: 6;"
+						div "89–103", class: "element-marker marker-actinide cat-actinide", tabindex: "0",
+							**marker_year.(10),
+							title: "actinides: shown in the row below", style: "grid-column: 3; grid-row: 7;"
+					end
+				end
+
+				# detail popover, filled in and opened by js/elements.js when an element is clicked
+				dialog id: "element-dialog", class: "element-dialog", "aria-labelledby": "element-dialog-name" do
+					div class: "element-dialog-card" do
+						button "×", type: "button", class: "element-dialog-close", "aria-label": "close"
+						div "", class: "element-dialog-content"
+					end
+				end
+
+				script type: "application/json", id: "elements-data" do
+					data = elements.to_h do |el|
+						[el[:number], el.slice(:number, :symbol, :name, :summary, :source, :details)
+							.merge(category: el[:category].downcase, slug: slug.(el[:category]))]
+					end
+					# "</" would end the script element early
+					text JSON.generate(data).gsub("</", "<\\/")
+				end
+
+				div class: "elements-attribution" do
+					text 'Element names, descriptions, electron configurations, discovery details and table layout adapted from '
+					a "Periodic-Table-JSON", href: "https://github.com/Bowserinator/Periodic-Table-JSON"
+					text ' by Bowserinator, licensed under '
+					a "CC BY-SA 3.0", href: "https://creativecommons.org/licenses/by-sa/3.0/"
+					text '. Atomic masses, categories and physical properties from '
+					a "PubChem", href: "https://pubchem.ncbi.nlm.nih.gov/periodic-table/"
+					text ' (NCBI, NIH), with discovery years for '
+					text corrections.map { |fix| elements.find { |el| el[:number] == fix["element"] }[:name].downcase }.uniq.join(" and ")
+					text ' corrected from '
+					a "Wikipedia", href: "https://en.wikipedia.org/wiki/Timeline_of_chemical_element_discoveries"
+					text '.'
+				end
+			end
+		end
+	end
+end

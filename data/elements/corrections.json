@@ -1,0 +1,21 @@
+{
+  "about": "Hand-made corrections applied on top of the pulled source data by source/playground/elements.weave. Each one names the value it replaces; if the source no longer has that value (e.g. after re-running script/pull-elements), the build fails so the correction can be reviewed rather than silently overriding new upstream data.",
+  "pubchem": [
+    {
+      "element": 13,
+      "field": "YearDiscovered",
+      "replaces": "Ancient",
+      "value": "1825",
+      "reason": "Alum was known in antiquity, but aluminium itself was first isolated by Hans Christian Ørsted in 1825. PubChem dates comparable elements (Na, K, Mg) by isolation.",
+      "source": "https://en.wikipedia.org/wiki/Timeline_of_chemical_element_discoveries"
+    },
+    {
+      "element": 20,
+      "field": "YearDiscovered",
+      "replaces": "Ancient",
+      "value": "1808",
+      "reason": "Lime was known in antiquity, but calcium itself was first isolated by Humphry Davy in 1808. PubChem dates comparable elements (Na, K, Mg) by isolation.",
+      "source": "https://en.wikipedia.org/wiki/Timeline_of_chemical_element_discoveries"
+    }
+  ]
+}

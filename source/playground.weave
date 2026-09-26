@@ -2,6 +2,7 @@ center_page "", "david's playground", theme: "dark" do
 	request_css "css/front.css"
 
 	div class: "front" do
+		a "← davidsiaw.net", href: "/", class: "front-back"
 		h1 "playground", class: "front-title"
 		p "small experiments", class: "front-subtitle"
 
@@ -12,10 +13,10 @@ center_page "", "david's playground", theme: "dark" do
 				span "integers & floats, bit by bit", class: "front-card-sub"
 			end
 
-			a href: "/", class: "front-card" do
-				icon :home
-				span "home", class: "front-card-title"
-				span "back to davidsiaw.net", class: "front-card-sub"
+			a href: "/playground/elements", class: "front-card" do
+				icon :flask
+				span "periodic table", class: "front-card-title"
+				span "all 118 elements", class: "front-card-sub"
 			end
 		end
 	end

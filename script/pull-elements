@@ -1,0 +1,78 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Downloads the periodic table source data into data/elements/, byte for byte
+# as published, and records where it came from in data/elements/SOURCES.md.
+# The site is built from these committed files; nothing is fetched at runtime.
+#
+#   script/pull-elements
+
+require 'net/http'
+require 'json'
+require 'fileutils'
+require 'time'
+
+SOURCES = [
+  {
+    file: 'bowserinator.json',
+    name: 'Periodic-Table-JSON by Bowserinator',
+    homepage: 'https://github.com/Bowserinator/Periodic-Table-JSON',
+    url: 'https://raw.githubusercontent.com/Bowserinator/Periodic-Table-JSON/master/PeriodicTableJSON.json',
+    license: 'CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/)',
+    count: ->(json) { json['elements'].length }
+  },
+  {
+    file: 'pubchem.json',
+    name: 'PubChem Periodic Table (NCBI, NIH)',
+    homepage: 'https://pubchem.ncbi.nlm.nih.gov/periodic-table/',
+    url: 'https://pubchem.ncbi.nlm.nih.gov/rest/pug/periodictable/JSON',
+    license: 'US government work; see https://www.ncbi.nlm.nih.gov/home/about/policies/',
+    count: ->(json) { json['Table']['Row'].length }
+  }
+].freeze
+
+DIR = File.expand_path('../data/elements', __dir__)
+
+def fetch(url, redirects = 3)
+  response = Net::HTTP.get_response(URI(url))
+  case response
+  when Net::HTTPSuccess then response.body
+  when Net::HTTPRedirection
+    raise "too many redirects for #{url}" if redirects.zero?
+
+    fetch(response['location'], redirects - 1)
+  else
+    raise "#{url} returned HTTP #{response.code}"
+  end
+end
+
+FileUtils.mkdir_p(DIR)
+pulled_at = Time.now.utc.iso8601
+
+SOURCES.each do |source|
+  body = fetch(source[:url])
+  # refuse to overwrite good data with something that isn't the expected JSON
+  count = source[:count].call(JSON.parse(body))
+  File.binwrite(File.join(DIR, source[:file]), body)
+  puts "#{source[:file]}: #{count} elements, #{body.bytesize} bytes"
+end
+
+File.write(File.join(DIR, 'SOURCES.md'), <<~MD)
+  # Element data sources
+
+  Pulled by `script/pull-elements` at #{pulled_at}. The files are stored exactly
+  as downloaded; re-run the script to refresh them.
+
+  Hand-made corrections to this data live in `corrections.json` (not touched by
+  the script) and are applied when the site is built. Each names the value it
+  replaces, so the build fails if a refresh changes that value upstream.
+
+  #{SOURCES.map { |s| <<~SRC }.join("\n")}
+    ## #{s[:file]}
+
+    - #{s[:name]}: #{s[:homepage]}
+    - Downloaded from: #{s[:url]}
+    - License: #{s[:license]}
+  SRC
+MD
+puts 'SOURCES.md written'
